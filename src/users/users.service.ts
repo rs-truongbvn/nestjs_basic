@@ -6,6 +6,8 @@ import { User, UserDocument } from './schemas/user.schema';
 import mongoose, { Model } from 'mongoose';
 import { compareSync, genSaltSync, hashSync } from 'bcryptjs';
 import { SoftDeleteModel } from 'soft-delete-plugin-mongoose';
+import { IUser } from './users.interface';
+import aqp from 'api-query-params';
 
 @Injectable()
 export class UsersService {
@@ -18,28 +20,64 @@ export class UsersService {
     const hash = hashSync(password, salt);
     return hash;
   };
-  async create(createUserDto: CreateUserDto) {
+  async create(createUserDto: CreateUserDto, creator: IUser) {
     const hashPassword = this.getHashPassword(createUserDto.password);
     let user = await this.userModel.create({
-      email: createUserDto.email,
+      ...createUserDto,
       password: hashPassword,
-      name: createUserDto.name,
-      phone: createUserDto.phone,
-      age: createUserDto.age,
-      address: createUserDto.address,
+      createdBy: {
+        _id: creator._id,
+        email: creator.email,
+      },
     });
-    return user;
+    return {
+      _id: user._id,
+      createdAt: user.createdAt,
+    };
   }
 
-  findAll() {
-    return this.userModel.find();
+  async findAll(currentPage: number, limit: number, qs: string) {
+    const { filter, sort, projection, population } = aqp(qs);
+    delete filter.current;
+    delete filter.pageSize;
+    let offset = (+currentPage - 1) * +limit;
+    let defaultLimit = +limit ? +limit : 10;
+
+    const totalItems = (await this.userModel.find(filter)).length;
+    const totalPages = Math.ceil(totalItems / defaultLimit);
+
+    // if (isEmpty(sort)) {
+    //   // @ts-ignore: Unreachable code error
+    //   sort = "-updatedAt"
+    // }
+
+    const result = await this.userModel
+      .find(filter)
+      .skip(offset)
+      .limit(defaultLimit)
+      .sort(sort as any)
+      .select('-password')
+      .populate(population)
+      .exec();
+
+    return {
+      meta: {
+        current: currentPage, //trang hiện tại
+        pageSize: limit, //số lượng bản ghi đã lấy
+        pages: totalPages, //tổng số trang với điều kiện query
+        total: totalItems, // tổng số phần tử (số bản ghi)
+      },
+      result, //kết quả query
+    };
   }
 
   findOne(id: string) {
     if (!mongoose.Types.ObjectId.isValid(id)) return 'not found user';
-    return this.userModel.findOne({
-      _id: id,
-    });
+    return this.userModel
+      .findOne({
+        _id: id,
+      })
+      .select('-password');
   }
 
   findOneByUsername(username: string) {
@@ -52,19 +90,42 @@ export class UsersService {
     return compareSync(password, hash);
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto) {
-    await this.userModel.updateOne({ _id: id }, updateUserDto);
-
-    if (!mongoose.Types.ObjectId.isValid(id)) return 'not found user';
-    return this.userModel.findOne({
-      _id: id,
-    });
+  async update(updateUserDto: UpdateUserDto, updater: IUser) {
+    if (!mongoose.Types.ObjectId.isValid(updateUserDto._id))
+      return 'not found user';
+    return await this.userModel.updateOne(
+      { _id: updateUserDto._id },
+      {
+        ...updateUserDto,
+        updatedBy: {
+          _id: updater._id,
+          email: updater.email,
+        },
+      },
+    );
   }
 
-  remove(id: string) {
+  async remove(id: string, deleter: IUser) {
     if (!mongoose.Types.ObjectId.isValid(id)) return 'not found user';
+    await this.userModel.updateOne(
+      { _id: id },
+      {
+        deletedBy: {
+          _id: deleter._id,
+          email: deleter.email,
+        },
+      },
+    );
     return this.userModel.softDelete({
       _id: id,
     });
   }
+
+  updateRefreshToken = async (refresh_token: string, _id: string) => {
+    return await this.userModel.updateOne({ _id }, { refresh_token });
+  };
+
+  findUserByToken = async (refresh_token: string) => {
+    return await this.userModel.findOne({ refresh_token });
+  };
 }
