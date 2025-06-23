@@ -8,21 +8,50 @@ import {
   Delete,
   UploadedFile,
   UseInterceptors,
+  ParseFilePipeBuilder,
+  HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { FilesService } from './files.service';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileDto } from './dto/update-file.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Public } from 'src/decorator/customize';
-
+import { Public, ResponseMessage } from 'src/decorator/customize';
+import { extname } from 'path';
+const allowedExtensions = [
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.gif',
+  '.pdf',
+  '.txt',
+  '.doc',
+  '.docx',
+];
 @Controller('files')
 export class FilesController {
   constructor(private readonly filesService: FilesService) {}
+
   @Public()
+  @ResponseMessage('Uploaded file')
   @Post('upload')
-  @UseInterceptors(FileInterceptor('file'))
-  uploadFile(@UploadedFile() file: Express.Multer.File) {
+  @UseInterceptors(FileInterceptor('fileUpload'))
+  uploadFile(
+    @UploadedFile()
+    file: Express.Multer.File,
+  ) {
+    const fileExt = extname(file.originalname).toLowerCase();
+
+    if (!allowedExtensions.includes(fileExt)) {
+      throw new BadRequestException(`Unsupported file type ${fileExt}`);
+    }
+
+    if (file.size > 1024 * 1024) {
+      throw new BadRequestException(`File too large`);
+    }
+
     console.log(file);
+    return { filename: file.filename };
   }
 
   @Get()

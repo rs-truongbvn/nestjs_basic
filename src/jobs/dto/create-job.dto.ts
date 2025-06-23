@@ -18,6 +18,9 @@ class Company {
 
   @IsNotEmpty({ message: 'Tên công ty không được trống!' })
   name: string;
+
+  @IsNotEmpty({ message: 'Logo không được trống!' })
+  logo: string;
 }
 export class CreateJobDto {
   @IsNotEmpty({ message: 'Tên không được trống!' })
@@ -39,6 +42,9 @@ export class CreateJobDto {
 
   @IsNotEmpty({ message: 'Mô tả job không được trống!' })
   description: string;
+
+  @IsNotEmpty({ message: 'Vị trí không được trống!' })
+  location: string;
 
   @IsDate({ message: 'Định dạng ngày bắt đầu không đúng' })
   @IsNotEmpty({ message: 'Ngày bắt đầu không được trống!' })
