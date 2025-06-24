@@ -6,6 +6,7 @@ import { Company, CompanyDocument } from './schemas/company.schema';
 import { SoftDeleteModel } from 'soft-delete-plugin-mongoose';
 import { IUser } from 'src/users/users.interface';
 import aqp from 'api-query-params';
+import mongoose from 'mongoose';
 
 @Injectable()
 export class CompaniesService {
@@ -56,11 +57,13 @@ export class CompaniesService {
     };
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} company`;
+  async findOne(_id: string) {
+    if (!mongoose.Types.ObjectId.isValid(_id)) return 'not found company';
+    return await this.companyModel.findOne({ _id });
   }
 
   async update(id: string, updateCompanyDto: UpdateCompanyDto, user: IUser) {
+    if (!mongoose.Types.ObjectId.isValid(id)) return 'not found company';
     let result = await this.companyModel.updateOne(
       { _id: id },
       {
@@ -75,6 +78,7 @@ export class CompaniesService {
   }
 
   async remove(id: string, user: IUser) {
+    if (!mongoose.Types.ObjectId.isValid(id)) return 'not found company';
     await this.companyModel.updateOne(
       { _id: id },
       {

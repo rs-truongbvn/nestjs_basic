@@ -32,7 +32,6 @@ const allowedExtensions = [
 export class FilesController {
   constructor(private readonly filesService: FilesService) {}
 
-  @Public()
   @ResponseMessage('Uploaded file')
   @Post('upload')
   @UseInterceptors(FileInterceptor('fileUpload'))

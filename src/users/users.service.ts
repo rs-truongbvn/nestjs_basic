@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
@@ -77,13 +77,16 @@ export class UsersService {
       .findOne({
         _id: id,
       })
-      .select('-password');
+      .select('-password')
+      .populate({ path: 'role', select: { _id: 1, name: 1 } });
   }
 
   findOneByUsername(username: string) {
-    return this.userModel.findOne({
-      email: username,
-    });
+    return this.userModel
+      .findOne({
+        email: username,
+      })
+      .populate({ path: 'role', select: { name: 1 } });
   }
 
   isValidPassword(password: string, hash: string) {
@@ -107,6 +110,12 @@ export class UsersService {
 
   async remove(id: string, deleter: IUser) {
     if (!mongoose.Types.ObjectId.isValid(id)) return 'not found user';
+    const foundUser = await this.userModel.findById(id);
+    if (foundUser.email === 'admin@gmail.com') {
+      throw new BadRequestException(
+        'Không thể xóa tài khoản Admin - admin@gmail.com',
+      );
+    }
     await this.userModel.updateOne(
       { _id: id },
       {
@@ -126,6 +135,8 @@ export class UsersService {
   };
 
   findUserByToken = async (refresh_token: string) => {
-    return await this.userModel.findOne({ refresh_token });
+    return await this.userModel
+      .findOne({ refresh_token })
+      .populate({ path: 'role', select: { name: 1 } });
   };
 }
