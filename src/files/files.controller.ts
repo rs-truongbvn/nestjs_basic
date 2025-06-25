@@ -50,7 +50,7 @@ export class FilesController {
     }
 
     console.log(file);
-    return { filename: file.filename };
+    return { fileName: file.filename };
   }
 
   @Get()

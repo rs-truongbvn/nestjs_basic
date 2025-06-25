@@ -109,9 +109,10 @@ export class UsersService {
   }
 
   async remove(id: string, deleter: IUser) {
-    if (!mongoose.Types.ObjectId.isValid(id)) return 'not found user';
+    if (!mongoose.Types.ObjectId.isValid(id))
+      throw new BadRequestException('not found user');
     const foundUser = await this.userModel.findById(id);
-    if (foundUser.email === 'admin@gmail.com') {
+    if (foundUser && foundUser.email === 'admin@gmail.com') {
       throw new BadRequestException(
         'Không thể xóa tài khoản Admin - admin@gmail.com',
       );
